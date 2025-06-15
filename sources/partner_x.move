@@ -63,7 +63,7 @@ module food_safety_contracts::partner_x {
     }
 
     public entry fun issue_partner_license(
-        admin: &signer,
+        _admin: &signer, // added "_admin" to match the pattern and resole error
         partner_address: address,
         partner_id: String,
         credentials: String,
