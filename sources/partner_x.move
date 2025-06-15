@@ -63,7 +63,7 @@ module food_safety_contracts::partner_x {
     }
 
     public entry fun issue_partner_license(
-        // admin: &signer,
+        admin: &signer,
         partner_address: address,
         partner_id: String,
         credentials: String,
