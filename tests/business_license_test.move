@@ -97,4 +97,42 @@ module food_safety_contracts::business_license_test {
         let non_existent_id = string::utf8(b"NONEXISTENT");
         assert!(business_license::verify_license(non_existent_id) == false, 1);
     }
+
+    #[test(non_admin = @0x999)]
+    #[expected_failure(abort_code = 1, location = food_safety_contracts::business_license)]
+    public fun test_unauthorized_license_issuance(non_admin: &signer) {
+        account::create_account_for_test(signer::address_of(non_admin));
+        
+        // Try to create registry as non-admin - should fail
+        business_license::create_registry(non_admin);
+    }
+
+    #[test(admin = @food_safety_contracts, aptos_framework = @0x1)]
+    #[expected_failure(abort_code = 3, location = food_safety_contracts::business_license)]
+    public fun test_invalid_validity_years(admin: &signer, aptos_framework: &signer) {
+        timestamp::set_time_has_started_for_testing(aptos_framework);
+        account::create_account_for_test(signer::address_of(admin));
+        business_license::create_registry(admin);
+        
+        // Try to issue license with 0 validity years
+        business_license::issue_license(
+            admin,
+            @0x123,
+            string::utf8(b"LIC003"),
+            string::utf8(b"Test Business"),
+            string::utf8(b"GOV003"),
+            string::utf8(b"Restaurant"),
+            0 // Invalid validity
+        );
+    }
+
+    #[test(admin = @food_safety_contracts, aptos_framework = @0x1)]
+    public fun test_verify_license_with_no_registry(admin: &signer, aptos_framework: &signer) {
+        timestamp::set_time_has_started_for_testing(aptos_framework);
+        account::create_account_for_test(signer::address_of(admin));
+        
+        // Don't create registry, just try to verify
+        let license_id = string::utf8(b"LIC004");
+        assert!(business_license::verify_license(license_id) == false, 1);
+    }
 }

@@ -42,8 +42,10 @@ module food_safety_contracts::business_license {
         move_to(account, registry);
     }
 
-    // Add this public function for testing
+    // Add authorization check for registry creation
     public fun create_registry(account: &signer) {
+        // Only allow the contract owner to create registry
+        assert!(signer::address_of(account) == @food_safety_contracts, E_NOT_AUTHORIZED);
         init_module(account);
     }
 
@@ -63,6 +65,12 @@ module food_safety_contracts::business_license {
         validity_years: u64,
     ) acquires LicenseRegistry {
         let admin_addr = signer::address_of(admin);
+        
+        // Add authorization check
+        assert!(admin_addr == @food_safety_contracts, E_NOT_AUTHORIZED);
+        
+        // Add validity check for years
+        assert!(validity_years > 0, E_INVALID_EXPIRY_DATE);
         
         let current_time = timestamp::now_seconds();
         let expiry_date = current_time + (validity_years * 365 * 24 * 60 * 60);
