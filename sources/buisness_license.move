@@ -42,6 +42,17 @@ module food_safety_contracts::business_license {
         move_to(account, registry);
     }
 
+    // Add this public function for testing
+    public fun create_registry(account: &signer) {
+        init_module(account);
+    }
+
+    // Add this view function to check if registry exists
+    #[view]
+    public fun registry_exists(account_addr: address): bool {
+        exists<LicenseRegistry>(account_addr)
+    }
+
     public entry fun issue_license(
         admin: &signer,
         business_owner: address,
@@ -99,6 +110,11 @@ module food_safety_contracts::business_license {
 
     #[view]
     public fun verify_license(license_id: String): bool acquires LicenseRegistry {
+        // Check if registry exists first
+        if (!exists<LicenseRegistry>(@food_safety_contracts)) {
+            return false
+        };
+        
         let registry = borrow_global<LicenseRegistry>(@food_safety_contracts);
         let len = vector::length(&registry.licenses);
         let i = 0;

@@ -62,8 +62,19 @@ module food_safety_contracts::partner_x {
         move_to(account, registry);
     }
 
+    // Add this public function for testing
+    public fun create_registry(account: &signer) {
+        init_module(account);
+    }
+
+    // Add this view function to check if registry exists
+    #[view]
+    public fun registry_exists(account_addr: address): bool {
+        exists<PartnerRegistry>(account_addr)
+    }
+
     public entry fun issue_partner_license(
-        _admin: &signer, // added "_admin" to match the pattern and resole error
+        _admin: &signer, // added "_admin" to match the pattern and resolve error
         partner_address: address,
         partner_id: String,
         credentials: String,

@@ -7,19 +7,18 @@ module food_safety_contracts::business_license_test {
     use food_safety_contracts::business_license;
 
     #[test(admin = @food_safety_contracts, aptos_framework = @0x1)]
-    public fun test_init_module(admin: &signer, aptos_framework: &signer) {
+    public fun test_complete_workflow(admin: &signer, aptos_framework: &signer) {
+        // Set up test environment
         timestamp::set_time_has_started_for_testing(aptos_framework);
-        business_license::init_module(admin);
+        account::create_account_for_test(signer::address_of(admin));
         
-        // Verify that the registry is initialized
-        assert!(exists<business_license::LicenseRegistry>(@food_safety_contracts), 1);
-    }
-
-    #[test(admin = @food_safety_contracts, aptos_framework = @0x1)]
-    public fun test_issue_license_success(admin: &signer, aptos_framework: &signer) {
-        timestamp::set_time_has_started_for_testing(aptos_framework);
-        business_license::init_module(admin);
+        // Initialize the registry
+        business_license::create_registry(admin);
         
+        // Verify registry is created
+        assert!(business_license::registry_exists(signer::address_of(admin)), 1);
+        
+        // Issue a license
         let business_owner = @0x123;
         let license_id = string::utf8(b"LIC001");
         let business_name = string::utf8(b"Test Restaurant");
@@ -37,84 +36,65 @@ module food_safety_contracts::business_license_test {
             validity_years
         );
 
-        // Verify license was issued
+        // Verify license was issued correctly
         let (name, biz_type, owner, is_active) = business_license::get_license_by_id(license_id);
         assert!(name == business_name, 2);
         assert!(biz_type == business_type, 3);
         assert!(owner == business_owner, 4);
         assert!(is_active == true, 5);
-    }
-
-    #[test(admin = @food_safety_contracts, aptos_framework = @0x1)]
-    public fun test_verify_license_valid(admin: &signer, aptos_framework: &signer) {
-        timestamp::set_time_has_started_for_testing(aptos_framework);
-        business_license::init_module(admin);
         
-        let business_owner = @0x123;
-        let license_id = string::utf8(b"LIC002");
-        let business_name = string::utf8(b"Test Cafe");
-        let government_id = string::utf8(b"GOV124");
-        let business_type = string::utf8(b"Cafe");
-        let validity_years = 1;
-
-        business_license::issue_license(
-            admin,
-            business_owner,
-            license_id,
-            business_name,
-            government_id,
-            business_type,
-            validity_years
-        );
-
         // Verify license is valid
         assert!(business_license::verify_license(license_id) == true, 6);
     }
 
     #[test(admin = @food_safety_contracts, aptos_framework = @0x1)]
-    public fun test_verify_license_expired(admin: &signer, aptos_framework: &signer) {
+    public fun test_license_expiry(admin: &signer, aptos_framework: &signer) {
         timestamp::set_time_has_started_for_testing(aptos_framework);
-        business_license::init_module(admin);
+        account::create_account_for_test(signer::address_of(admin));
+        business_license::create_registry(admin);
         
         let business_owner = @0x123;
-        let license_id = string::utf8(b"LIC003");
-        let business_name = string::utf8(b"Test Bakery");
-        let government_id = string::utf8(b"GOV125");
-        let business_type = string::utf8(b"Bakery");
-        let validity_years = 1;
-
+        let license_id = string::utf8(b"LIC002");
+        
+        // Issue short-term license
         business_license::issue_license(
             admin,
             business_owner,
             license_id,
-            business_name,
-            government_id,
-            business_type,
-            validity_years
+            string::utf8(b"Temp Restaurant"),
+            string::utf8(b"GOV002"),
+            string::utf8(b"Restaurant"),
+            1 // 1 year validity
         );
-
+        
+        // Verify license is initially valid
+        assert!(business_license::verify_license(license_id) == true, 1);
+        
         // Fast forward time to expire the license
         let future_time = timestamp::now_seconds() + (2 * 365 * 24 * 60 * 60); // 2 years
-        timestamp::update_global_time_for_test(future_time);
-
-        // Verify license is expired
-        assert!(business_license::verify_license(license_id) == false, 7);
+        timestamp::update_global_time_for_test_secs(future_time);
+        
+        // Verify license is now expired
+        assert!(business_license::verify_license(license_id) == false, 2);
     }
 
     #[test(admin = @food_safety_contracts)]
     #[expected_failure(abort_code = 2, location = food_safety_contracts::business_license)]
     public fun test_get_license_by_id_not_found(admin: &signer) {
-        business_license::init_module(admin);
+        account::create_account_for_test(signer::address_of(admin));
+        business_license::create_registry(admin);
         
         let non_existent_id = string::utf8(b"NONEXISTENT");
-        let _ = business_license::get_license_by_id(non_existent_id);
+        business_license::get_license_by_id(non_existent_id);
     }
 
-    #[test(admin = @food_safety_contracts)]
-    public fun test_verify_license_not_found(admin: &signer) {
-        business_license::init_module(admin);
+    #[test(admin = @food_safety_contracts, aptos_framework = @0x1)]
+    public fun test_verify_license_not_found(admin: &signer, aptos_framework: &signer) {
+        timestamp::set_time_has_started_for_testing(aptos_framework);
+        account::create_account_for_test(signer::address_of(admin));
+        business_license::create_registry(admin);
         
         let non_existent_id = string::utf8(b"NONEXISTENT");
-        assert!(business_license::verify_license(non_existent_id) == false, 8);
+        assert!(business_license::verify_license(non_existent_id) == false, 1);
     }
 }

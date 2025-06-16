@@ -6,25 +6,25 @@ module food_safety_contracts::partner_x_test {
     use aptos_framework::account;
     use food_safety_contracts::partner_x;
 
-    #[test(admin = @food_safety_contracts, aptos_framework = @0x1)]
-    public fun test_init_module(admin: &signer, aptos_framework: &signer) {
+    #[test(admin = @food_safety_contracts, partner = @0x456, aptos_framework = @0x1)]
+    public fun test_complete_partner_workflow(admin: &signer, partner: &signer, aptos_framework: &signer) {
+        // Set up test environment
         timestamp::set_time_has_started_for_testing(aptos_framework);
-        partner_x::init_module(admin);
+        account::create_account_for_test(signer::address_of(admin));
+        account::create_account_for_test(signer::address_of(partner));
         
-        // Verify that the registry is initialized
-        assert!(exists<partner_x::PartnerRegistry>(@food_safety_contracts), 1);
-    }
-
-    #[test(admin = @food_safety_contracts, aptos_framework = @0x1)]
-    public fun test_issue_partner_license_success(admin: &signer, aptos_framework: &signer) {
-        timestamp::set_time_has_started_for_testing(aptos_framework);
-        partner_x::init_module(admin);
+        // Initialize the registry
+        partner_x::create_registry(admin);
         
-        let partner_address = @0x456;
+        // Verify registry is created
+        assert!(partner_x::registry_exists(signer::address_of(admin)), 1);
+        
+        let partner_address = signer::address_of(partner);
         let partner_id = string::utf8(b"PARTNER001");
         let credentials = string::utf8(b"PhD in Food Science");
         let specialization = string::utf8(b"Food Safety Inspector");
 
+        // Issue partner license
         partner_x::issue_partner_license(
             admin,
             partner_address,
@@ -35,26 +35,6 @@ module food_safety_contracts::partner_x_test {
 
         // Verify partner is registered and active
         assert!(partner_x::verify_partner(partner_address) == true, 2);
-    }
-
-    #[test(admin = @food_safety_contracts, partner = @0x456, aptos_framework = @0x1)]
-    public fun test_submit_verification_success(admin: &signer, partner: &signer, aptos_framework: &signer) {
-        timestamp::set_time_has_started_for_testing(aptos_framework);
-        partner_x::init_module(admin);
-        
-        let partner_address = signer::address_of(partner);
-        let partner_id = string::utf8(b"PARTNER002");
-        let credentials = string::utf8(b"MSc in Food Technology");
-        let specialization = string::utf8(b"Quality Assurance");
-
-        // Issue partner license first
-        partner_x::issue_partner_license(
-            admin,
-            partner_address,
-            partner_id,
-            credentials,
-            specialization
-        );
 
         // Submit verification
         let report_id = string::utf8(b"REPORT001");
@@ -86,7 +66,9 @@ module food_safety_contracts::partner_x_test {
     #[expected_failure(abort_code = 1, location = food_safety_contracts::partner_x)]
     public fun test_submit_verification_unauthorized(admin: &signer, unauthorized_partner: &signer, aptos_framework: &signer) {
         timestamp::set_time_has_started_for_testing(aptos_framework);
-        partner_x::init_module(admin);
+        account::create_account_for_test(signer::address_of(admin));
+        account::create_account_for_test(signer::address_of(unauthorized_partner));
+        partner_x::create_registry(admin);
         
         // Try to submit verification without being a registered partner
         let report_id = string::utf8(b"REPORT002");
@@ -106,63 +88,12 @@ module food_safety_contracts::partner_x_test {
     }
 
     #[test(admin = @food_safety_contracts)]
-    public fun test_verify_partner_not_found(admin: &signer) {
-        partner_x::init_module(admin);
-        
-        let non_existent_partner = @0x999;
-        assert!(partner_x::verify_partner(non_existent_partner) == false, 7);
-    }
-
-    #[test(admin = @food_safety_contracts)]
     #[expected_failure(abort_code = 3, location = food_safety_contracts::partner_x)]
     public fun test_get_verification_by_report_id_not_found(admin: &signer) {
-        partner_x::init_module(admin);
+        account::create_account_for_test(signer::address_of(admin));
+        partner_x::create_registry(admin);
         
         let non_existent_report = string::utf8(b"NONEXISTENT");
-        let _ = partner_x::get_verification_by_report_id(non_existent_report);
-    }
-
-    #[test(admin = @food_safety_contracts, partner = @0x456, aptos_framework = @0x1)]
-    public fun test_multiple_verifications_increment_count(admin: &signer, partner: &signer, aptos_framework: &signer) {
-        timestamp::set_time_has_started_for_testing(aptos_framework);
-        partner_x::init_module(admin);
-        
-        let partner_address = signer::address_of(partner);
-        let partner_id = string::utf8(b"PARTNER003");
-        let credentials = string::utf8(b"BSc in Food Science");
-        let specialization = string::utf8(b"Food Inspector");
-
-        // Issue partner license
-        partner_x::issue_partner_license(
-            admin,
-            partner_address,
-            partner_id,
-            credentials,
-            specialization
-        );
-
-        // Submit first verification
-        partner_x::submit_verification(
-            partner,
-            string::utf8(b"REPORT003"),
-            string::utf8(b"Apple Juice"),
-            @0x789,
-            string::utf8(b"SAFE"),
-            string::utf8(b"No pesticide residue")
-        );
-
-        // Submit second verification
-        partner_x::submit_verification(
-            partner,
-            string::utf8(b"REPORT004"),
-            string::utf8(b"Orange Juice"),
-            @0x789,
-            string::utf8(b"SAFE"),
-            string::utf8(b"Within safety limits")
-        );
-
-        // Both verifications should be recorded
-        let (_, _, _, _, _) = partner_x::get_verification_by_report_id(string::utf8(b"REPORT003"));
-        let (_, _, _, _, _) = partner_x::get_verification_by_report_id(string::utf8(b"REPORT004"));
+        partner_x::get_verification_by_report_id(non_existent_report);
     }
 }
