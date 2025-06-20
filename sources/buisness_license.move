@@ -56,7 +56,7 @@ module food_safety_contracts::business_license {
     }
 
     public entry fun issue_license(
-        admin: &signer,
+        admin: &signer, // our account that issues the license
         business_owner: address,
         license_id: String,
         business_name: String,
